@@ -1,7 +1,7 @@
 const std = @import("std");
 
 fn getRelativePath() []const u8 {
-    comptime var src: std.builtin.SourceLocation = @src();
+    const src: std.builtin.SourceLocation = @src();
     return std.fs.path.dirname(src.file).? ++ std.fs.path.sep_str;
 }
 
@@ -66,7 +66,7 @@ pub fn link(exe: *std.build.LibExeObjStep) void {
 
 // STB
 pub fn stbLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
 
     var b = exe.builder;
     var stb = b.addStaticLibrary("stb", null);
@@ -81,7 +81,7 @@ pub fn stbLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
 }
 // OpenGL
 pub fn glLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
 
     var b = exe.builder;
     var target = exe.target;
@@ -115,7 +115,7 @@ pub fn glLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
 }
 // ImGui
 pub fn imguiLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
     var b = exe.builder;
     var target = exe.target;
     var imgui = b.addStaticLibrary("imgui", null);
@@ -153,7 +153,7 @@ pub fn imguiLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
 
 // GLFW
 pub fn glfwLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
     var b = exe.builder;
     var target = exe.target;
     var glfw = b.addStaticLibrary("glfw", null);
@@ -246,7 +246,7 @@ pub fn addBinaryContent(comptime baseContentPath: []const u8) AddContentErrors!v
     defer sourceFolder.close();
     var iterator: fs.Dir.Iterator = sourceFolder.iterate();
     while (iterator.next() catch return error.FolderError) |target| {
-        var x: fs.Dir.Entry = target;
+        const x: fs.Dir.Entry = target;
         if (x.kind == .Directory) {
             const source: []const u8 = std.fs.path.join(gpa.allocator(), &[_][]const u8{ baseContentPath, x.name }) catch return error.RecursionError;
             const targetFolder: []const u8 = std.fs.path.join(gpa.allocator(), &[_][]const u8{ zigBin, x.name }) catch return error.RecursionError;
@@ -265,7 +265,7 @@ fn innerAddContent(allocator: std.mem.Allocator, folder: []const u8, dest: []con
 
     var iterator: fs.Dir.Iterator = sourceFolder.iterate();
     while (iterator.next() catch return error.FolderError) |target| {
-        var x: fs.Dir.Entry = target;
+        const x: fs.Dir.Entry = target;
         if (x.kind == .Directory) {
             const source: []const u8 = std.fs.path.join(allocator, &[_][]const u8{ folder, x.name }) catch return error.RecursionError;
             const targetFolder: []const u8 = std.fs.path.join(allocator, &[_][]const u8{ dest, x.name }) catch return error.RecursionError;
@@ -291,8 +291,8 @@ fn copy(from: []const u8, to: []const u8, filename: []const u8) AddContentErrors
         return;
     };
 
-    var sstat = sfile.stat() catch return error.FileError;
-    var dstat = dfile.stat() catch return error.FileError;
+    const sstat = sfile.stat() catch return error.FileError;
+    const dstat = dfile.stat() catch return error.FileError;
 
     if (sstat.mtime > dstat.mtime) {
         dfile.close();

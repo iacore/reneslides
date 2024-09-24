@@ -1,21 +1,20 @@
 const std = @import("std");
 const fs = std.fs;
 const ztBuild = @import("./ZT/build.zig");
-const Builder = std.build.Builder;
+const Builder = std.Build;
 
 pub const filedlgPkg = std.build.Pkg{ .name = "filedialog", .path = std.build.FileSource{ .path = getRelativePath() ++ "src/pkg/filedialog.zig" }, .dependencies = &[_]std.build.Pkg{ztBuild.imguiPkg} };
 
 pub const myMiniZipPkg = std.build.Pkg{ .name = "myminizip", .path = std.build.FileSource{ .path = getRelativePath() ++ "src/pkg/myminizip.zig" }, .dependencies = &[_]std.build.Pkg{} };
 
 fn getRelativePath() []const u8 {
-    comptime var src: std.builtin.SourceLocation = @src();
-    return std.fs.path.dirname(src.file).? ++ std.fs.path.sep_str;
+    const src: std.builtin.SourceLocation = @src();
+    const i = std.mem.lastIndexOfScalar(u8, src.file, std.fs.path.sep).?;
+    return src.file[0 .. i + 1];
 }
 
 pub fn build(b: *Builder) void {
     const target = b.standardTargetOptions(.{});
-
-    b.cache_root = "zig-cache";
 
     // declare optional other zig executables here
     // format is: executable_name, path_to_zig_file
@@ -23,7 +22,7 @@ pub fn build(b: *Builder) void {
         [_][]const u8{ "slides", "src/main.zig" },
     };
 
-    for (examples) |example, i| {
+    for (examples, 0..) |example, i| {
         createExe(b, target, example[0], example[1]) catch unreachable;
 
         // first element in the list is added as "run" so "zig build run" works
@@ -32,17 +31,13 @@ pub fn build(b: *Builder) void {
 }
 
 /// creates an exe with all the required dependencies
-fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source: []const u8) !void {
-    var exe = b.addExecutable(name, source);
-    comptime var path = getRelativePath();
-
-    exe.setBuildMode(b.standardReleaseOptions());
-    exe.setOutputDir(std.fs.path.join(b.allocator, &[_][]const u8{ b.cache_root, "bin" }) catch unreachable);
-    exe.setTarget(target);
+fn createExe(b: *Builder, target: std.Build.ResolvedTarget, name: []const u8, source: []const u8) !void {
+    var exe = b.addExecutable(.{ .name = name, .root_source_file = b.path(source), .target = target });
+    const path = getRelativePath();
 
     // libfiledialog
-    exe.linkLibrary(filedialogLibrary(exe));
-    exe.addPackage(filedlgPkg);
+    exe.linkLibrary(filedialogLibrary(b, exe));
+    exe.root_module.addImport("filedialog", filedlgPkg);
 
     // zlib - for libpng
     exe.linkLibrary(addZlib(exe));
@@ -69,11 +64,10 @@ fn createExe(b: *Builder, target: std.zig.CrossTarget, name: []const u8, source:
 }
 
 // Filedialog
-pub fn filedialogLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
-    var b = exe.builder;
-    var target = exe.target;
-    var filedialog = b.addStaticLibrary("filedialog", null);
+pub fn filedialogLibrary(b: *std.Build, exe: *std.Build.Step.Compile) *std.Build.Step.Compile {
+    const path = getRelativePath();
+    var target = exe.rootModuleTarget();
+    var filedialog = b.addStaticLibrary(.{ .name = "filedialog", .target = target });
     filedialog.linkLibC();
     filedialog.linkSystemLibrary("c++");
 
@@ -114,7 +108,7 @@ pub fn filedialogLibrary(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep
 }
 
 pub fn addZlib(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
     var b = exe.builder;
     var target = exe.target;
     var libz = b.addStaticLibrary("z", null);
@@ -151,7 +145,7 @@ pub fn addZlib(exe: *std.build.LibExeObjStep) *std.build.LibExeObjStep {
 }
 
 pub fn addLibPng(exe: *std.build.LibExeObjStep) !*std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
     var b = exe.builder;
     var target = exe.target;
     var libPng = b.addStaticLibrary("png", null);
@@ -197,7 +191,7 @@ pub fn addLibPng(exe: *std.build.LibExeObjStep) !*std.build.LibExeObjStep {
     return libPng;
 }
 pub fn addLibMyMiniZip(exe: *std.build.LibExeObjStep) !*std.build.LibExeObjStep {
-    comptime var path = getRelativePath();
+    const path = getRelativePath();
     var b = exe.builder;
     var target = exe.target;
     var libMyMiniZip = b.addStaticLibrary("myminizip", null);
@@ -240,7 +234,7 @@ pub fn addBinaryContent(comptime baseContentPath: []const u8) ztBuild.AddContent
     defer sourceFolder.close();
     var iterator: fs.Dir.Iterator = sourceFolder.iterate();
     while (iterator.next() catch return error.FolderError) |target| {
-        var x: fs.Dir.Entry = target;
+        const x: fs.Dir.Entry = target;
         if (x.kind == .Directory) {
             const source: []const u8 = std.fs.path.join(gpa.allocator(), &[_][]const u8{ baseContentPath, x.name }) catch return error.RecursionError;
             const targetFolder: []const u8 = std.fs.path.join(gpa.allocator(), &[_][]const u8{ zigBin, baseContentPath, x.name }) catch return error.RecursionError;
@@ -260,7 +254,7 @@ fn innerAddContent(allocator: std.mem.Allocator, folder: []const u8, dest: []con
 
     var iterator: fs.Dir.Iterator = sourceFolder.iterate();
     while (iterator.next() catch return error.FolderError) |target| {
-        var x: fs.Dir.Entry = target;
+        const x: fs.Dir.Entry = target;
         if (x.kind == .Directory) {
             const source: []const u8 = std.fs.path.join(allocator, &[_][]const u8{ folder, x.name }) catch return error.RecursionError;
             const targetFolder: []const u8 = std.fs.path.join(allocator, &[_][]const u8{ dest, x.name }) catch return error.RecursionError;
@@ -286,8 +280,8 @@ fn copy(from: []const u8, to: []const u8, filename: []const u8) ztBuild.AddConte
         return;
     };
 
-    var sstat = sfile.stat() catch return error.FileError;
-    var dstat = dfile.stat() catch return error.FileError;
+    const sstat = sfile.stat() catch return error.FileError;
+    const dstat = dfile.stat() catch return error.FileError;
 
     if (sstat.mtime > dstat.mtime) {
         dfile.close();

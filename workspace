@@ -1,0 +1,20 @@
+[Window][Debug##Default]
+Pos=60,60
+Size=400,400
+Collapsed=0
+
+[Window][Load Slideshow##loadsld]
+Pos=60,60
+Size=800,400
+Collapsed=0
+
+[Table][0x6C14D538,4]
+RefScale=24
+Column 0  Sort=0v
+
+[Table][0xDEC5C453,4]
+RefScale=24
+Column 0  Sort=0v
+
+[Docking][Data]
+

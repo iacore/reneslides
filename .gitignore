@@ -16,3 +16,5 @@ releases/
 /t.sld
 /x.sld
 /zig-out/
+.zig-cache/
+shit.log
